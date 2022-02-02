@@ -1,0 +1,13 @@
+plugins {
+    id 'application'
+}
+
+application {
+    mainClassName = "edu.warwick.pssc.conclave.client.Client"
+}
+
+dependencies {
+    implementation project(":common")
+    implementation "com.r3.conclave:conclave-web-client:$conclaveVersion"
+    implementation "info.picocli:picocli:4.6.1"
+}

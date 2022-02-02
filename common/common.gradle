@@ -1,17 +1,12 @@
-group 'edu.warwick.project.pssc'
-version '1.0-SNAPSHOT'
-
-repositories {
-    mavenCentral()
-    mavenCentral()
+plugins {
+    id 'org.jetbrains.kotlin.plugin.serialization' version "$kotlinVersion"
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib"
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.2'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.2'
-}
+    // Add kotlinx serialisation dependency
+    api "org.jetbrains.kotlinx:kotlinx-serialization-core:$kotlinSerialisationVersion"
+    api "org.jetbrains.kotlinx:kotlinx-serialization-protobuf:$kotlinSerialisationVersion"
 
-test {
-    useJUnitPlatform()
+    implementation 'org.web3j:core:4.8.7'
+
 }

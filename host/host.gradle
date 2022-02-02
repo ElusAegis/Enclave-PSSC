@@ -1,0 +1,51 @@
+plugins {
+    id 'application'
+}
+
+application {
+    // conclave-web-host provides us with the main method to use.
+    mainClassName = "com.r3.conclave.host.web.EnclaveWebHost"
+}
+
+
+task addDirectoryForEnclaveStorage {
+    mustRunAfter clean
+    doLast {
+        mkdir "$projectDir/runtime"
+    }
+}
+
+task removeEnclaveStorageDirectory {
+    doLast {
+        delete "$projectDir/runtime"
+    }
+}
+
+run {
+    dependsOn tasks.named("addDirectoryForEnclaveStorage")
+}
+
+clean {
+    dependsOn tasks.named("removeEnclaveStorageDirectory")
+}
+
+// Override the default (mock) with -PenclaveMode=
+def mode = findProperty("enclaveMode")?.toString()?.toLowerCase() ?: "mock"
+
+// Create a task that can be used for generating signing materials
+tasks.register("prepareForSigning") {
+    it.dependsOn(":enclave:generateEnclaveSigningMaterial" + mode.capitalize())
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web:2.0.2.RELEASE'
+
+    // Use the host web server for receiving and sending mail to the clients. This means the client needs to use the
+    // conclave-web-client library.
+    runtimeOnly "com.r3.conclave:conclave-web-host:$conclaveVersion"
+
+    runtimeOnly project(path: ":enclave", configuration: mode)
+
+    // Enable unit tests
+    testImplementation "com.r3.conclave:conclave-host:$conclaveVersion"
+}

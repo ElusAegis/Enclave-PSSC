@@ -1,0 +1,48 @@
+plugins {
+    id 'com.r3.conclave.enclave'
+}
+
+dependencies {
+    implementation project(":common")
+}
+
+conclave {
+    productID = 1
+    revocationLevel = 0
+
+    maxHeapSize = "256m"
+    maxStackSize = "2m"
+    inMemoryFileSystemSize = "0m"
+    persistentFileSystemSize = "64m"
+    enablePersistentMap = true
+    maxPersistentMapSize = "16m"
+
+
+    simulation {
+        // Simulation signing configuration using a dummy key
+        signingType = dummyKey
+    }
+
+    debug {
+        // Debug signing configuration using a private key
+        signingType = privateKey
+        signingKey = file("resourses/enclave_distributor_key.pem")
+    }
+
+    release {
+        // The enclave needs to be built in stages.
+        // Firstly, build the signing material:
+        //  ./gradlew prepareForSigning -PenclaveMode="Release"
+        //
+        // Generate a signature from the signing material. The password for the sample external key is '12345'
+        //  openssl dgst -sha256 -out signing/signature.bin -sign signing/external_signing_private.pem -keyform PEM enclave/build/enclave/Release/signing_material.bin
+        //
+        // Finally build the signed enclave:
+        //  ./gradlew build -PenclaveMode="Release"
+        //
+        signingType = externalKey
+        signatureDate = new Date(1970, 0, 1)
+        mrsignerSignature = file("../signing/signature.bin")
+        mrsignerPublicKey = file("../signing/external_signing_public.pem")
+    }
+}
