@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Start Data Requester Interactive" type="JetRunConfigurationType">
+    <option name="MAIN_CLASS_NAME" value="edu.warwick.pssc.conclave.client.DataRequesterClient" />
+    <module name="PSSC_With_Conclave.client.main" />
+    <option name="PROGRAM_PARAMETERS" value="-i -prv ed07ee0caccd6fa2592715a7ab9f496742b127f7840bb0e71b5d4234f9752d99 -c &quot;S:0000000000000000000000000000000000000000000000000000000000000000 PROD:1 SEC:INSECURE&quot; -u &quot;http://localhost:8080&quot;" />
+    <shortenClasspath name="NONE" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

@@ -6,6 +6,7 @@ import edu.warwick.pssc.conclave.DataDiscloseCondition
 import edu.warwick.pssc.conclave.SecretData
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoBuf
+import org.web3j.crypto.Sign
 import java.util.*
 
 @Serializable
@@ -21,26 +22,26 @@ sealed class Message {
     companion object { fun ByteArray.deserializeMail() = ProtoBuf.decodeFromByteArray(serializer(), this) }
 }
 
+object SecretDataSubmission {
+    /**
+     * Message sent from the Client to the Host with Secret Data.
+     */
+    @Serializable
+    data class Submission(
+        val data: SecretData,
+        val condition: DataDiscloseCondition,
+    ) : Message()
 
-
-/**
- * Message sent from the Client to the Host with Secret Data.
- */
-@Serializable
-data class SecretDataSubmission(
-    val data: SecretData,
-    val condition: DataDiscloseCondition,
-) : Message()
-
-/**
- * Response after a successful Secret Data submission.
- * @param referenceId of the submitted data for future reference.
- */
-@Serializable
-data class SecretDataSubmissionResponse(
-    @Serializable(with = UUIDSerializer::class)
-    val referenceId: UUID
-) : Message()
+    /**
+     * Response after a successful Secret Data submission.
+     * @param dataReferenceId of the submitted data for future reference.
+     */
+    @Serializable
+    data class Response(
+        @Serializable(with = UUIDSerializer::class)
+        val dataReferenceId: UUID
+    ) : Message()
+}
 
 
 /**
@@ -48,23 +49,30 @@ data class SecretDataSubmissionResponse(
  * @param message is an optional message, describing what has happened.
  */
 @Serializable
-data class ErrorResponse (
+data class ErrorMessage (
     val message : String? = null
 ) : Message()
 
 
-/**
- * Message sent from the Client to the Host to request the Host to disclose the Secret Data.
- */
-@Serializable
-data class SecretDataRequest(
-    @Serializable(with = UUIDSerializer::class)
-    val referenceId: UUID
-) : Message()
+object SecretDataRequest {
 
-@Serializable
-data class SecretDataDisclosure(
-    val data: SecretData
-) : Message()
+    /**
+     * Message sent from the Client to the Host to request the Host to disclose the Secret Data.
+     */
+    @Serializable
+    data class Request(
+        @Serializable(with = UUIDSerializer::class)
+        val dataReferenceId: UUID,
+        @Serializable(with = SignatureSerializer::class)
+        val dataReferenceIdSignature: Sign.SignatureData
+    ) : Message()
+
+
+    @Serializable
+    data class Response(
+        val data: SecretData
+    ) : Message()
+}
+
 
 

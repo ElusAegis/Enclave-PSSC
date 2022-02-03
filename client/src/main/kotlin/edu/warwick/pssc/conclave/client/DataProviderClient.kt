@@ -5,19 +5,19 @@ import com.r3.conclave.client.web.WebEnclaveTransport
 import com.r3.conclave.common.EnclaveConstraint
 import edu.warwick.pssc.conclave.EthPublicKey
 import edu.warwick.pssc.conclave.PublicKeyDiscloseCondition
-import edu.warwick.pssc.conclave.common.ErrorResponse
-import edu.warwick.pssc.conclave.common.Message
+import edu.warwick.pssc.conclave.client.connection.sendAndWaitForMail
+import edu.warwick.pssc.conclave.common.ErrorMessage
+import edu.warwick.pssc.conclave.common.Message.Companion.deserializeMail
 import edu.warwick.pssc.conclave.common.SecretDataSubmission
-import edu.warwick.pssc.conclave.common.SecretDataSubmissionResponse
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
+import org.apache.logging.log4j.Level
+import org.apache.logging.log4j.LogManager
 import picocli.CommandLine
-import java.math.BigInteger
 import java.util.concurrent.Callable
 import kotlin.system.exitProcess
 
-const val INTERACTIVE = false
 
 /**
  * Submit Data Client
@@ -28,12 +28,14 @@ const val INTERACTIVE = false
     mixinStandardHelpOptions = true,
     description = ["Simple client that can add secret data to the SecretDataEnclave."]
 )
-class Client : Callable<Void?> {
+class DataProviderClient : Callable<Void?> {
 
-    @CommandLine.Option(names = ["-s", "--secret"], 
+    private val logger = LogManager.getLogger()
+
+    @CommandLine.Option(names = ["-s", "--secret"],
         required = true,
-        description = ["The secret to submit to the enclave."],
-        interactive = INTERACTIVE)
+        interactive = true,
+        description = ["The secret to submit to the enclave."])
     private var secretData: String? = null
 
     @CommandLine.Parameters(description = ["List of Public Keys to allow to access secret data. Use HEX encoding."],
@@ -43,7 +45,6 @@ class Client : Callable<Void?> {
     @CommandLine.Option(
         names = ["-u", "--url"],
         required = false,
-        interactive = INTERACTIVE,
         description = ["URL of the web host running the enclave."]
     )
     private var url: String = "localhost:8080"
@@ -51,7 +52,6 @@ class Client : Callable<Void?> {
     @CommandLine.Option(
         names = ["-c", "--constraint"],
         required = true,
-        interactive = INTERACTIVE,
         description = ["Enclave constraint which determines the enclave's identity and whether it's acceptable to use."],
         converter = [EnclaveConstraintConverter::class]
     )
@@ -63,30 +63,32 @@ class Client : Callable<Void?> {
         /*A new private key is generated. Enclave Client is created using this private key and constraint.
         A corresponding public key will be used by the enclave to encrypt data to be sent to this client*/
         val enclaveClient = EnclaveClient(constraint!!)
+
         val webEnclaveTransport = WebEnclaveTransport(url)
 
-        enclaveClient.start(webEnclaveTransport)
+        try {
 
-        val encodedSecretData = ProtoBuf.encodeToByteArray(secretData)
-        val mail = SecretDataSubmission(encodedSecretData, PublicKeyDiscloseCondition(publicKeys))
-        val mailBytes = mail.encodeToByteArray()
-        var responseMail = enclaveClient.sendMail(mailBytes)
-        if (responseMail == null) {
-            do {
-                Thread.sleep(2000)
-                //Poll for reply to enclave
-                responseMail = enclaveClient.pollMail()
-            } while (responseMail == null)
+            enclaveClient.start(webEnclaveTransport)
+        } catch (e: Exception) {
+            logger.error("Could not connect to enclave.", e.message)
+            exitProcess(1)
         }
 
-        val replyBytes = responseMail.bodyAsBytes
+
+        val encodedSecretData = ProtoBuf.encodeToByteArray(secretData)
+        val mail = SecretDataSubmission.Submission(
+            encodedSecretData,
+            PublicKeyDiscloseCondition(publicKeys)
+        )
+        val mailBytes = mail.encodeToByteArray()
+        val responseMail = enclaveClient.sendAndWaitForMail(mailBytes)
 
         try  {
-            when (val reply = ProtoBuf.decodeFromByteArray(Message.serializer(), replyBytes)) {
-                is SecretDataSubmissionResponse -> {
-                    println("Successfully submitted secret data to enclave. Data Reference ID is ${reply.referenceId}")
+            when (val reply = responseMail.bodyAsBytes.deserializeMail()) {
+                is SecretDataSubmission.Response -> {
+                    logger.log(Level.INFO, "Successfully submitted secret data to enclave. Data Reference ID is ${reply.dataReferenceId}")
                 }
-                is ErrorResponse -> {
+                is ErrorMessage -> {
                     throw Exception(reply.message)
                 }
                 else -> {
@@ -94,31 +96,20 @@ class Client : Callable<Void?> {
                 }
             }
         } catch (e: Exception) {
-            println("Error submitting secret data to enclave.")
+            logger.log(Level.WARN, "Error submitting secret data to enclave.")
         }
 
         webEnclaveTransport.close()
-        println("Enclave client exiting.")
+        logger.log(Level.INFO, "Enclave client exiting.")
         return null
     }
 
-    private class EnclaveConstraintConverter : CommandLine.ITypeConverter<EnclaveConstraint?> {
-        override fun convert(value: String): EnclaveConstraint {
-            return EnclaveConstraint.parse(value)
-        }
-    }
 
-    private class EthPublicKeyConverter : CommandLine.ITypeConverter<EthPublicKey> {
-        override fun convert(value: String?): EthPublicKey {
-            return BigInteger(value, 16)
-        }
-
-    }
 
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            val exitCode = CommandLine(Client()).execute(*args)
+            val exitCode = CommandLine(DataProviderClient()).execute(*args)
             exitProcess(exitCode)
         }
     }
