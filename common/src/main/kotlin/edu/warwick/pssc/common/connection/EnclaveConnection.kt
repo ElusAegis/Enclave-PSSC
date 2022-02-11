@@ -1,4 +1,4 @@
-package edu.warwick.pssc.conclave.client.connection
+package edu.warwick.pssc.common.connection
 
 import com.r3.conclave.client.EnclaveClient
 import com.r3.conclave.mail.EnclaveMail

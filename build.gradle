@@ -37,9 +37,6 @@ allprojects {
         // Use the Kotlin test library.
         testImplementation 'org.jetbrains.kotlin:kotlin-test'
 
-        // Use the Kotlin JUnit integration.
-        testImplementation 'org.jetbrains.kotlin:kotlin-test-junit'
-
         // Use JUnit 5
         testImplementation 'org.junit.jupiter:junit-jupiter:5.8.2'
         testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.2'

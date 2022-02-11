@@ -3,6 +3,7 @@ plugins {
 }
 
 dependencies {
+    compileOnly "com.r3.conclave:conclave-client:$conclaveVersion"
     // Add kotlinx serialisation dependency
     api "org.jetbrains.kotlinx:kotlinx-serialization-core:$kotlinSerialisationVersion"
     api "org.jetbrains.kotlinx:kotlinx-serialization-protobuf:$kotlinSerialisationVersion"

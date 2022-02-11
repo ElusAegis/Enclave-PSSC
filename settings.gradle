@@ -22,12 +22,9 @@ pluginManagement {
     }
 }
 
-include 'host', 'client', 'enclave', 'common'
+include 'host', 'client', 'enclave', 'common', 'oracle'
 
 // Each sub-module can be called modulename.gradle, to make IDE navigation and tabs better.
 rootProject.children.each { it.buildFileName = "${it.name}.gradle" }
 
 rootProject.name = 'PSSC_With_Conclave'
-
-
-

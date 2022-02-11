@@ -4,7 +4,7 @@ import com.r3.conclave.enclave.Enclave
 import com.r3.conclave.mail.EnclaveMail
 import edu.warwick.pssc.conclave.PublicKeyDiscloseCondition
 import edu.warwick.pssc.conclave.common.*
-import edu.warwick.pssc.conclave.common.Message.Companion.deserializeMail
+import edu.warwick.pssc.conclave.common.Message.Companion.deserializeMessage
 import org.web3j.crypto.Sign
 import java.security.SignatureException
 
@@ -31,7 +31,7 @@ class DataStoreEnclave : Enclave() {
         logInfo("Received mail!")
         logInfo("Mail Topic: ${mail.topic}")
 
-        val message = mail.bodyAsBytes.deserializeMail()
+        val message = mail.bodyAsBytes.deserializeMessage()
 
         when (message) {
             is SecretDataSubmission.Submission -> processDataSubmission(message, mail, routingHint)

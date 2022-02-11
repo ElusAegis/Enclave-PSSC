@@ -4,8 +4,13 @@ package edu.warwick.pssc.conclave.common
 
 import edu.warwick.pssc.conclave.DataDiscloseCondition
 import edu.warwick.pssc.conclave.SecretData
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.Polymorphic
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoBuf
+import org.web3j.abi.TypeReference
+import org.web3j.abi.datatypes.Address
+import org.web3j.abi.datatypes.Type
 import org.web3j.crypto.Sign
 import java.util.*
 
@@ -19,7 +24,7 @@ sealed class Message {
     /**
      * Deserialize message from a byte array
      */
-    companion object { fun ByteArray.deserializeMail() = ProtoBuf.decodeFromByteArray(serializer(), this) }
+    companion object { fun ByteArray.deserializeMessage() = ProtoBuf.decodeFromByteArray(serializer(), this) }
 }
 
 object SecretDataSubmission {
@@ -72,6 +77,47 @@ object SecretDataRequest {
     data class Response(
         val data: SecretData
     ) : Message()
+}
+
+object OracleRegistration {
+    /**
+     * Message sent from the Oracle to the Host to register as an Oracle.
+     */
+    @Serializable
+    object Request : Message()
+
+    /**
+     * Response after a successful Oracle registration.
+     */
+    @Serializable
+    object SuccessResponse: Message()
+}
+
+object OracleEthDataCall {
+
+    /**
+     * Enclave Data Request sent to an Oracle to get the data.
+     */
+    @Serializable
+    data class Request(
+        @Serializable(with = UUIDSerializer::class)
+        val dataCallId: UUID,
+        @Serializable(with = AddressTypeSerializer::class)
+        val contractAddress: Address,
+        val inputData: List<@Polymorphic Type<@Contextual Any>>,
+        val outputDataType: @Serializable(with=TypeReferenceSerializer::class) TypeReference<Type<@Contextual Any>>,
+    ) : Message()
+
+    /**
+     * Oracle response with data.
+     */
+    @Serializable
+    data class Response(
+        @Serializable(with = UUIDSerializer::class)
+        val dataCallId: UUID,
+        val outputData: @Polymorphic Type<@Contextual Any>
+    ) : Message()
+
 }
 
 

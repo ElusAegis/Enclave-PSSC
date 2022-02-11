@@ -1,4 +1,4 @@
-package edu.warwick.pssc.conclave.client
+package edu.warwick.pssc.client
 
 import com.r3.conclave.common.EnclaveConstraint
 import edu.warwick.pssc.conclave.EthPublicKey

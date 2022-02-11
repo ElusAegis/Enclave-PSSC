@@ -1,9 +1,9 @@
-## Research Topic 
+# Research Topic 
 
 1. How to protect about data request replay, so that the Enclave could not reverse enclave to a previous state, replay the event horison, and then request all the request again.
    1. Use Oracles to sign true random messages from inside the enclave to outside oracle to prevent replay.
 
-
+## Enclaves
 
 ### Replay protection for deleted data:
 
@@ -37,6 +37,7 @@ Important to sign the requested data id to prevent the replay attack
 
 We might consider encrypting the data with the Ethereum Public Key to protect it further against replay attacks
 
+## Constraints
 
 ### Signatures in Ethereum
 
@@ -48,5 +49,16 @@ https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm
 
 org/web3j/crypto/Sign.java
 
+## On-chain constraints
+
+Ethereum Library we have used - web3j, does not allow to load the contracts dynamically, which means we can not interact with any arbitrary contract and can rather only use the predefined contracts, for which we have created Contract Wrappers
+
+Alternative is to use a JS application which would perform data queries to the blockchain and pass it back to the Java program to respond to the enclave. We would use sockets to implement this also will later enable us to have a lot more functionality for which data sources we can use for Enclaves 
+
+## Clients
 
 ### Loggers
+
+we have added logger form log4j, being aware of its issues with the vulnerability
+
+##
