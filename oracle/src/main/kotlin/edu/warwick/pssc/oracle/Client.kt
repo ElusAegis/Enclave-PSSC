@@ -9,13 +9,14 @@ import edu.warwick.pssc.conclave.common.Message.Companion.deserializeMessage
 import edu.warwick.pssc.conclave.common.OracleEthDataCall
 import edu.warwick.pssc.conclave.common.OracleRegistration
 import org.apache.logging.log4j.LogManager
+import org.web3j.abi.datatypes.Address
 import kotlin.system.exitProcess
 
 class Client(apiUrl: String, enclaveUrl: String, enclaveConstraint: String) {
 
     private val logger = LogManager.getLogger()
 
-    private val oracle = ApiOracleService(apiUrl)
+    private val oracle = EthOracleService(apiUrl, Address("0"),  logger)
 
     private val enclave: EnclaveClient = EnclaveClient(EnclaveConstraint.parse(enclaveConstraint))
 
@@ -72,15 +73,24 @@ class Client(apiUrl: String, enclaveUrl: String, enclaveConstraint: String) {
             logger.debug("Received message from enclave.")
 
             try {
-                val response = mail.bodyAsBytes.deserializeMessage()
+                val message = mail.bodyAsBytes.deserializeMessage()
 
-                when (response) {
+                when (message) {
                     is OracleEthDataCall.Request -> {
                         logger.info("Received OracleEthDataCall.Request from enclave.")
-                        logger.info("Do not process it for now ")   // TODO: Process it
+                        val replyMessage = try {
+                            val returnValue = oracle.doEthDataCall(message.contractAddress, message.functionName, message.inputData, message.outputDataType)
+                             OracleEthDataCall.Response(returnValue)
+                        } catch (e: Exception) {
+                            logger.error("Failed to process OracleEthDataCall request.", e.message)
+                            ErrorMessage("Failed to process OracleEthDataCall request: ${e.message}")
+                        }
+
+                        enclave.sendMail(mail.topic, replyMessage.encodeToByteArray(), null)
+
                     }
                     else -> {
-                        throw RuntimeException("Incorrect response message from the Enclave, got ${response::class.simpleName}")
+                        throw RuntimeException("Incorrect response message from the Enclave, got ${message::class.simpleName}")
                     }
                 }
             } catch (e: Exception) {
@@ -93,7 +103,7 @@ class Client(apiUrl: String, enclaveUrl: String, enclaveConstraint: String) {
      * The connection is established during initialization.
      * Thus, we can safely close it here
      */
-    fun shutdown() {
+    private fun shutdown() {
         (enclave.transport as WebEnclaveTransport).close()
     }
 

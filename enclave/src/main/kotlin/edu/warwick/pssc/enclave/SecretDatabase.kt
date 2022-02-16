@@ -6,9 +6,9 @@ import java.util.*
 
 class SecretDatabase {
 
-    private val storage = HashMap<UUID, Pair<SecretData, DataDiscloseCondition>>()
+    private val storage = HashMap<UUID, Pair<SecretData, DataDiscloseCondition<*>>>()
 
-    fun storeData(data: SecretData, discloseCondition: DataDiscloseCondition): UUID {
+    fun storeData(data: SecretData, discloseCondition: DataDiscloseCondition<Any>): UUID {
         val secretDataId = UUID.randomUUID()
         storage[secretDataId] = Pair(data, discloseCondition)
 
@@ -25,13 +25,27 @@ class SecretDatabase {
     }
 
     /**
-     * Get data from the database by secretDataId
+     * An explicit method to get data with security bound to prevent accidental data disclosure
      */
-    fun getData(secretDataId: UUID): Pair<SecretData, DataDiscloseCondition> {
+    fun getDataIfAuthorised(
+        secretDataId: UUID,
+        authorised: Boolean,
+    ): SecretData {
+        if (!authorised) {
+            throw IllegalArgumentException("Requested data is not authorised!")
+        }
+
+        if (!storage.containsKey(secretDataId))
+            throw IllegalArgumentException("SecretDataId is not valid")
+
+        return storage[secretDataId]!!.first
+    }
+
+    fun getCondition(secretDataId: UUID): DataDiscloseCondition<*> {
         // Check that secretDataId is valid
         if (!storage.containsKey(secretDataId))
             throw IllegalArgumentException("SecretDataId is not valid")
 
-        return storage[secretDataId]!!
+        return storage[secretDataId]!!.second
     }
 }

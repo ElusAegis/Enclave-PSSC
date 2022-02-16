@@ -37,6 +37,16 @@ Important to sign the requested data id to prevent the replay attack
 
 We might consider encrypting the data with the Ethereum Public Key to protect it further against replay attacks
 
+### Multithreading Enclave
+
+If we multithread we would be able to make the enclave wait and then pick up from the check point that we have specified. But this increases the complexity of the implemintation. Alternitively, we can just have a signle thread and code implemintation for checkpoints. 
+
+### How do we wait for Oracle data?
+
+Encalves are a state machine, meaning we have no option to check the status unless we trust host. But we do not want to do so. 
+
+Additionally, how do we decide if all active Oracles have answered the challenge, rather then the time was dspead up ond only Host controlled Oracles answered it
+
 ## Constraints
 
 ### Signatures in Ethereum
@@ -55,10 +65,18 @@ Ethereum Library we have used - web3j, does not allow to load the contracts dyna
 
 Alternative is to use a JS application which would perform data queries to the blockchain and pass it back to the Java program to respond to the enclave. We would use sockets to implement this also will later enable us to have a lot more functionality for which data sources we can use for Enclaves 
 
-## Clients
+## Data Reader
 
 ### Loggers
 
 we have added logger form log4j, being aware of its issues with the vulnerability
 
-##
+## Oracles
+
+## Data Providers 
+
+### How to represent data constraints in the system?
+
+We have used CNF form to allow an arbitrary comparison for a single cell of a contract function output. Yet we also need to extend this to comparing all function outputs in general as well as for different contracts.
+We achive the latter as a simplification - we need all contracts. Here wehave a tradeoff between the functionality and usability and type safeness. We could enforse stricter constraints with less functionality. But instead we have decided to allow more fluid verifications
+

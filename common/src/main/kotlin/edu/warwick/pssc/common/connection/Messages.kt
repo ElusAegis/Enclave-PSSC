@@ -34,7 +34,7 @@ object SecretDataSubmission {
     @Serializable
     data class Submission(
         val data: SecretData,
-        val condition: DataDiscloseCondition,
+        val condition: DataDiscloseCondition<@Contextual Any>,
     ) : Message()
 
     /**
@@ -100,12 +100,11 @@ object OracleEthDataCall {
      */
     @Serializable
     data class Request(
-        @Serializable(with = UUIDSerializer::class)
-        val dataCallId: UUID,
         @Serializable(with = AddressTypeSerializer::class)
         val contractAddress: Address,
+        val functionName: String,
         val inputData: List<@Polymorphic Type<@Contextual Any>>,
-        val outputDataType: @Serializable(with=TypeReferenceSerializer::class) TypeReference<Type<@Contextual Any>>,
+        val outputDataType: List<@Serializable(with=TypeReferenceSerializer::class) TypeReference<Type<@Contextual Any>>>,
     ) : Message()
 
     /**
@@ -113,9 +112,7 @@ object OracleEthDataCall {
      */
     @Serializable
     data class Response(
-        @Serializable(with = UUIDSerializer::class)
-        val dataCallId: UUID,
-        val outputData: @Polymorphic Type<@Contextual Any>
+        val outputData: List<@Polymorphic Type<@Contextual Any>>
     ) : Message()
 
 }
