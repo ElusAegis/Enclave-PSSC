@@ -37,9 +37,9 @@ typealias ValidationCNF = AndList<OrList<ValidationRule>>
 
 
 @Serializable
-data class PublicKeyDiscloseCondition(
+ class PublicKeyDiscloseCondition(
     val publicKeys: List<@Serializable(with = BigIntegerSerializer::class) EthPublicKey>
-) : DataDiscloseCondition<EthPublicKey>() {
+) : DataDiscloseCondition<@Serializable(with = BigIntegerSerializer::class) EthPublicKey>() {
 
     override fun check(checkInput: EthPublicKey): Boolean {
         return publicKeys.contains(checkInput)
@@ -51,7 +51,7 @@ data class EthContractDiscloseCondition(
     @Serializable(with = AddressTypeSerializer::class)
     val contractAddress: Address,
     val functionName: String,
-    val inputData: List<@Polymorphic Type<@Contextual Any>?>, // Where the value is null, we substitute with the requesters address in function call
+    val inputData: List<@Polymorphic Type<@Contextual Any>>, // Where the value is null, we substitute with the requesters address in function call
     val outputDataType: List<@Serializable(with= TypeReferenceSerializer::class) TypeReference<Type<@Contextual Any>>>,
     val validationsCNF: ValidationCNF // We allow mixing in the validation rules for the output data by indexing the data they should reference
 ) : DataDiscloseCondition<List<Type<Any>>>() {
@@ -107,3 +107,14 @@ data class EthMultiContractDiscloseCondition(
 )
 
 typealias SecretData = ByteArray
+
+@Serializable
+object AddressPlaceholder: Type<Unit> {
+    override fun getValue() {
+        // This method is not implemented as there is no value
+    }
+
+    override fun getTypeAsString(): String {
+        return "Address Placeholder"
+    }
+}

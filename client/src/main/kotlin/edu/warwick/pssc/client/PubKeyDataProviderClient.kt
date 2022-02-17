@@ -4,10 +4,12 @@ import com.r3.conclave.client.EnclaveClient
 import com.r3.conclave.client.web.WebEnclaveTransport
 import com.r3.conclave.common.EnclaveConstraint
 import edu.warwick.pssc.common.connection.sendAndWaitForMail
+import edu.warwick.pssc.conclave.DataDiscloseCondition
 import edu.warwick.pssc.conclave.EthPublicKey
 import edu.warwick.pssc.conclave.PublicKeyDiscloseCondition
 import edu.warwick.pssc.conclave.common.ErrorMessage
-import edu.warwick.pssc.conclave.common.Message.Companion.deserializeMessage
+import edu.warwick.pssc.conclave.common.MessageSerializer.decodeMessage
+import edu.warwick.pssc.conclave.common.MessageSerializer.encodeMessage
 import edu.warwick.pssc.conclave.common.SecretDataSubmission
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.encodeToByteArray
@@ -24,11 +26,11 @@ import kotlin.system.exitProcess
  * Takes a string and a list of ethereum public keys and submits it to the enclave as a constraint.
  */
 @CommandLine.Command(
-    name = "data-submission-client",
+    name = "pk-submission",
     mixinStandardHelpOptions = true,
     description = ["Simple client that can add secret data to the SecretDataEnclave."]
 )
-class DataProviderClient : Callable<Void?> {
+class PubKeyDataProviderClient : Callable<Void?> {
 
     private val logger = LogManager.getLogger()
 
@@ -78,13 +80,13 @@ class DataProviderClient : Callable<Void?> {
         val encodedSecretData = ProtoBuf.encodeToByteArray(secretData)
         val mail = SecretDataSubmission.Submission(
             encodedSecretData,
-            PublicKeyDiscloseCondition(publicKeys)
+            PublicKeyDiscloseCondition(publicKeys) as DataDiscloseCondition<Any>
         )
-        val mailBytes = mail.encodeToByteArray()
+        val mailBytes = mail.encodeMessage()
         val responseMail = enclaveClient.sendAndWaitForMail(mailBytes)
 
         try  {
-            when (val reply = responseMail.bodyAsBytes.deserializeMessage()) {
+            when (val reply = responseMail.bodyAsBytes.decodeMessage()) {
                 is SecretDataSubmission.Response -> {
                     logger.log(Level.INFO, "Successfully submitted secret data to enclave. Data Reference ID is ${reply.dataReferenceId}")
                 }
@@ -109,7 +111,7 @@ class DataProviderClient : Callable<Void?> {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            val exitCode = CommandLine(DataProviderClient()).execute(*args)
+            val exitCode = CommandLine(PubKeyDataProviderClient()).execute(*args)
             exitProcess(exitCode)
         }
     }

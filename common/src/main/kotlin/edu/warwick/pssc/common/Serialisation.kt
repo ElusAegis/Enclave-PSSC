@@ -1,6 +1,9 @@
+@file:OptIn(ExperimentalSerializationApi::class)
+
 package edu.warwick.pssc.conclave.common
 
 
+import edu.warwick.pssc.conclave.AddressPlaceholder
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
@@ -10,6 +13,7 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.protobuf.ProtoBuf
 import org.web3j.abi.TypeReference
 import org.web3j.abi.datatypes.*
 import org.web3j.abi.datatypes.generated.*
@@ -17,6 +21,33 @@ import org.web3j.crypto.Sign
 import java.math.BigInteger
 import java.util.*
 import kotlin.reflect.KClass
+
+
+object MessageSerializer {
+
+    private val serializer = ProtoBuf { serializersModule = web3jSerializationModule }
+
+    fun Message.encodeMessage(): ByteArray {
+        return serializer.encodeToByteArray(Message.serializer(), this)
+    }
+
+    fun ByteArray.decodeMessage(): Message {
+        return serializer.decodeFromByteArray(Message.serializer(), this)
+    }
+}
+
+val web3jSerializationModule = SerializersModule {
+
+    polymorphic(Type::class) {
+        subclass(Address::class, AddressTypeSerializer())
+        subclass(Bool::class, BoolTypeSerializer())
+        subclass(AddressPlaceholder::class, AddressPlaceholder.serializer())
+        NumericTypeSerializer.types.forEach {
+            subclass(it, NumericTypeSerializer(it.java))
+        }
+    }
+}
+
 
 class UUIDSerializer : KSerializer<UUID> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("UUID", PrimitiveKind.STRING)
@@ -79,41 +110,20 @@ class SignatureSerializer : KSerializer<Sign.SignatureData> {
     }
 }
 
-val web3jSerializationModule = SerializersModule {
-
-    polymorphic(Type::class) {
-        subclass(Address::class, AddressTypeSerializer())
-        subclass(Bool::class, BoolTypeSerializer())
-        NumericTypeSerializer.types.forEach {
-            subclass(it, NumericTypeSerializer(it.java))
-        }
-    }
-
-}
-
 class AddressTypeSerializer : KSerializer<Address> {
-    override val descriptor = buildClassSerialDescriptor("Address") {
-        element<String>("address")
-    }
-    override fun serialize(encoder: Encoder, value: Address) = encoder.encodeStructure(descriptor) {
-        encodeStringElement(descriptor, 0, value.value)
-    }
-    override fun deserialize(decoder: Decoder) = decoder.decodeStructure(descriptor) {
-        val address = decodeStringElement(descriptor, 0)
-        Address(address)
-    }
+    override val descriptor = PrimitiveSerialDescriptor("Address", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: Address) = encoder.encodeString(value.toString())
+
+    override fun deserialize(decoder: Decoder) = Address(decoder.decodeString())
 }
 
 class BoolTypeSerializer : KSerializer<Bool> {
-    override val descriptor = buildClassSerialDescriptor("Bool") {
-        element<Boolean>("value")
-    }
-    override fun serialize(encoder: Encoder, value: Bool) = encoder.encodeStructure(descriptor) {
-        encodeBooleanElement(descriptor, 0, value.value)
-    }
-    override fun deserialize(decoder: Decoder) = decoder.decodeStructure(descriptor) {
-        Bool(decodeBooleanElement(descriptor, 0))
-    }
+    override val descriptor = PrimitiveSerialDescriptor("Bool", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: Bool) = encoder.encodeBoolean(value.value)
+
+    override fun deserialize(decoder: Decoder) = Bool(decoder.decodeBoolean())
 }
 
 class NumericTypeSerializer<T: NumericType>(private val tClass: Class<T>) : KSerializer<T> {
@@ -121,11 +131,13 @@ class NumericTypeSerializer<T: NumericType>(private val tClass: Class<T>) : KSer
     override val descriptor = buildClassSerialDescriptor("Numeric${tClass.simpleName}") {
         element("value", BigIntegerSerializer().descriptor)
     }
+
     override fun serialize(encoder: Encoder, value: T) {
         return encoder.encodeStructure(descriptor) {
             encodeSerializableElement(descriptor, 0, BigIntegerSerializer(), value.value)
         }
     }
+
     override fun deserialize(decoder: Decoder) = decoder.decodeStructure(descriptor) {
         var bi: BigInteger? = null
         while (true) {

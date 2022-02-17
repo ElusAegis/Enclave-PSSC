@@ -3,55 +3,61 @@ package edu.warwick.pssc.client
 import com.r3.conclave.client.EnclaveClient
 import com.r3.conclave.client.web.WebEnclaveTransport
 import com.r3.conclave.common.EnclaveConstraint
-import com.r3.conclave.common.EnclaveException
 import edu.warwick.pssc.common.connection.sendAndWaitForMail
-import edu.warwick.pssc.conclave.EthPrivateKey
+import edu.warwick.pssc.conclave.AddressPlaceholder
+import edu.warwick.pssc.conclave.Comparator
+import edu.warwick.pssc.conclave.DataDiscloseCondition
+import edu.warwick.pssc.conclave.EthContractDiscloseCondition
 import edu.warwick.pssc.conclave.common.ErrorMessage
 import edu.warwick.pssc.conclave.common.MessageSerializer.decodeMessage
 import edu.warwick.pssc.conclave.common.MessageSerializer.encodeMessage
-import edu.warwick.pssc.conclave.common.SecretDataRequest
-import edu.warwick.pssc.conclave.common.toByteArray
+import edu.warwick.pssc.conclave.common.SecretDataSubmission
+import edu.warwick.pssc.conclave.common.web3jSerializationModule
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.decodeFromByteArray
+import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.LogManager
-import org.web3j.crypto.ECKeyPair
-import org.web3j.crypto.Sign
+import org.web3j.abi.TypeReference
+import org.web3j.abi.datatypes.Address
+import org.web3j.abi.datatypes.Type
+import org.web3j.abi.datatypes.generated.Uint256
 import picocli.CommandLine
-import java.util.*
 import java.util.concurrent.Callable
 import kotlin.system.exitProcess
 
+
 /**
  * Submit Data Client
- * Takes a string and a list of ethereum public keys and submits it to the enclave as a constraint.
+ * Specify the ERC20 Token Address to check if requester has tokens of that address
  */
 @CommandLine.Command(
-    name = "pk-requester",
+    name = "contract-submission",
     mixinStandardHelpOptions = true,
-    description = ["Simple client that can add secret data to the SecretDataEnclave."]
+    description = ["Client that can add secret data to the SecretDataEnclave based on ERC20 tokens."]
 )
-class DataRequesterClient : Callable<Void?> {
+class EthCallDataProviderClient : Callable<Void?> {
 
     private val logger = LogManager.getLogger()
-
-
-    @CommandLine.Option(names = ["-i", "--id"],
-        required = true,
-        interactive = true,
-        description = ["The id of the secret data to query."],
-        converter = [UUIDConverter::class])
-    private var dataReferenceId: UUID? = null
+    @OptIn(ExperimentalSerializationApi::class)
+    private val serializer = ProtoBuf { serializersModule = web3jSerializationModule }
 
     @CommandLine.Option(
-        names = ["-prv", "--private-key"],
+        names = ["-s", "--secret"],
         required = true,
-        interactive = false,
-        description = ["The private key to prove ownership of pubic key."],
-        converter = [EthPublicKeyConverter::class]
+        interactive = true,
+        description = ["The secret to submit to the enclave."])
+    private var secretData: String? = null
+
+    @CommandLine.Option(
+        names = ["-t", "--token"],
+        required = true,
+        interactive = false, // TODO: Make interactive
+        description = ["ERC20 Contract Address to check tokens of."],
+        converter = [AddressConverter::class]
     )
-    private var privateKey: EthPrivateKey? = null
+    private var address: Address? = null
+
 
     @CommandLine.Option(
         names = ["-u", "--url"],
@@ -74,6 +80,7 @@ class DataRequesterClient : Callable<Void?> {
         /*A new private key is generated. Enclave Client is created using this private key and constraint.
         A corresponding public key will be used by the enclave to encrypt data to be sent to this client*/
         val enclaveClient = EnclaveClient(constraint!!)
+
         val webEnclaveTransport = WebEnclaveTransport(url)
 
         try {
@@ -85,38 +92,36 @@ class DataRequesterClient : Callable<Void?> {
         }
 
 
-        val signingKeyPair = ECKeyPair.create(privateKey!!)
-
-        // We sign over the requested data id
-        // We do not protect against the replay attack at the moment, as Enclave can not serve as a source of randomness
-        // And any randomness produced by the client can be forged by the enclave host
-        val dataReferenceIdSignature = Sign.signMessage(dataReferenceId!!.toByteArray(), signingKeyPair)
-
-
-        val mail = SecretDataRequest.Request(
-            dataReferenceId!!,
-            dataReferenceIdSignature
+        val encodedSecretData = serializer.encodeToByteArray(secretData)
+        val submission = SecretDataSubmission.Submission(
+            encodedSecretData,
+            EthContractDiscloseCondition(
+                address!!,
+                "balanceOf",
+                listOf(AddressPlaceholder) as List<Type<Any>>,
+                listOf(TypeReference.create(Uint256::class.java)) as List<TypeReference<Type<Any>>>,
+                listOf(listOf(Triple(Uint256(0), Comparator.GREATER_THAN, 0))) as List<List<Triple<Type<Any>, Comparator, Int>>>
+            ) as DataDiscloseCondition<Any>
         )
 
-        val mailBytes = mail.encodeMessage()
+        val mailBytes = submission.encodeMessage()
 
         val responseMail = enclaveClient.sendAndWaitForMail(mailBytes)
 
         try  {
             when (val reply = responseMail.bodyAsBytes.decodeMessage()) {
-                is SecretDataRequest.Response -> {
-                    val secretData = ProtoBuf.decodeFromByteArray<String>(reply.data)
-                    logger.log(Level.INFO, "Successfully got secret data: $secretData")
+                is SecretDataSubmission.Response -> {
+                    logger.log(Level.INFO, "Successfully submitted secret data to enclave. Data Reference ID is ${reply.dataReferenceId}")
                 }
                 is ErrorMessage -> {
-                    throw EnclaveException(reply.message)
+                    throw Exception(reply.message)
                 }
                 else -> {
-                    throw EnclaveException("Unknown response from enclave.")
+                    throw Exception("Unknown response from enclave.")
                 }
             }
         } catch (e: Exception) {
-            logger.log(Level.WARN, "Error getting secret data: from enclave: ${e.message}")
+            logger.log(Level.WARN, "Error submitting secret data to enclave.")
         }
 
         webEnclaveTransport.close()
@@ -126,15 +131,12 @@ class DataRequesterClient : Callable<Void?> {
 
 
 
-
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            val exitCode = CommandLine(DataRequesterClient()).execute(*args)
+            val exitCode = CommandLine(EthCallDataProviderClient()).execute(*args)
             exitProcess(exitCode)
         }
     }
-
-
 
 }

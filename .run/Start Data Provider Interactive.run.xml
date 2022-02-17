@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Start Data Provider Interactive" type="JetRunConfigurationType">
-    <option name="MAIN_CLASS_NAME" value="edu.warwick.pssc.conclave.client.DataProviderClient" />
+  <configuration default="false" name="PK Data Provider Interactive" type="JetRunConfigurationType">
+    <option name="MAIN_CLASS_NAME" value="edu.warwick.pssc.client.PubKeyDataProviderClient" />
     <module name="PSSC_With_Conclave.client.main" />
     <option name="PROGRAM_PARAMETERS" value="-s -c &quot;S:0000000000000000000000000000000000000000000000000000000000000000 PROD:1 SEC:INSECURE&quot; -u &quot;http://localhost:8080&quot; -- 7cfd98ba4277b0e53449b7ce01ccb7a928c4be1df7ef03a251931a824ead9a6d0b5a93b69678c522c2fa7e0d23fb3986ee82ab76689a95e2b51dbdc32260bd43" />
     <shortenClasspath name="NONE" />

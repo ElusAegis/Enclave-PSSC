@@ -3,7 +3,7 @@ plugins {
 }
 
 application {
-    mainClassName = "edu.warwick.pssc.oracle.Client"
+    mainClassName = "edu.warwick.pssc.oracle.Oracle"
 }
 
 dependencies {

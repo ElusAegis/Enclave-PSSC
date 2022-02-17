@@ -3,18 +3,19 @@ package edu.warwick.pssc.enclave
 import java.security.PublicKey
 
 class OracleManager {
-    private val oracles : MutableSet<PublicKey> = mutableSetOf()
 
-    fun registerOracle(oracle : PublicKey): Boolean {
-        if (oracle in oracles) {
-            return false
-        }
-        oracles.add(oracle)
-        return true
+    data class ConnectionData(val publicKey: PublicKey, val routingHint: String?)
+
+    private val oracles : MutableMap<String, ConnectionData> = mutableMapOf()
+
+    fun registerOracle(key : String, oracleConnection : ConnectionData): Boolean {
+        val newRegistration = !(key in oracles.keys)
+
+        oracles[key] = oracleConnection
+
+        return newRegistration
     }
 
-    fun getOracles() : Set<PublicKey> {
-        return oracles
-    }
+    fun getOracles() = oracles.entries
 
 }

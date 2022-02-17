@@ -5,14 +5,15 @@ import com.r3.conclave.client.web.WebEnclaveTransport
 import com.r3.conclave.common.EnclaveConstraint
 import edu.warwick.pssc.common.connection.sendAndWaitForMail
 import edu.warwick.pssc.conclave.common.ErrorMessage
-import edu.warwick.pssc.conclave.common.Message.Companion.deserializeMessage
+import edu.warwick.pssc.conclave.common.MessageSerializer.decodeMessage
+import edu.warwick.pssc.conclave.common.MessageSerializer.encodeMessage
 import edu.warwick.pssc.conclave.common.OracleEthDataCall
 import edu.warwick.pssc.conclave.common.OracleRegistration
 import org.apache.logging.log4j.LogManager
 import org.web3j.abi.datatypes.Address
 import kotlin.system.exitProcess
 
-class Client(apiUrl: String, enclaveUrl: String, enclaveConstraint: String) {
+class Oracle(apiUrl: String, enclaveUrl: String, enclaveConstraint: String, oracleKey: String) {
 
     private val logger = LogManager.getLogger()
 
@@ -21,6 +22,7 @@ class Client(apiUrl: String, enclaveUrl: String, enclaveConstraint: String) {
     private val enclave: EnclaveClient = EnclaveClient(EnclaveConstraint.parse(enclaveConstraint))
 
     init {
+
         val enclaveTransport = WebEnclaveTransport(enclaveUrl)
 
         try {
@@ -32,19 +34,22 @@ class Client(apiUrl: String, enclaveUrl: String, enclaveConstraint: String) {
 
         logger.info("Connected to enclave.")
 
-        registerWithEnclave()
-        logger.info("Successfully registered with enclave.")
+        registerWithEnclave(oracleKey)
+        logger.info("Successfully signed into the enclave.")
     }
 
-    fun registerWithEnclave() {
-        val registrationByteMessage = OracleRegistration.Request.encodeToByteArray()
-        val responseMail = enclave.sendAndWaitForMail(registrationByteMessage)
+    private fun registerWithEnclave(key: String) {
+        val registrationByteMessage = OracleRegistration.Request(key).encodeMessage()
+        val responseMail = enclave.sendAndWaitForMail(registrationByteMessage, "oracle-registration")
 
         try {
-            val response = responseMail.bodyAsBytes.deserializeMessage()
+            val response = responseMail.bodyAsBytes.decodeMessage()
 
             when (response) {
                 is OracleRegistration.SuccessResponse -> {} // Registered successfully
+                is OracleRegistration.AlreadyRegisteredResponse -> {
+                    logger.warn("Oracle with such key already registered with enclave. We have updated the routing hint.")
+                }
                 is ErrorMessage -> {
                     throw RuntimeException("Error registering with enclave: ${response.message}")
 
@@ -73,20 +78,21 @@ class Client(apiUrl: String, enclaveUrl: String, enclaveConstraint: String) {
             logger.debug("Received message from enclave.")
 
             try {
-                val message = mail.bodyAsBytes.deserializeMessage()
+                val message = mail.bodyAsBytes.decodeMessage()
 
                 when (message) {
                     is OracleEthDataCall.Request -> {
-                        logger.info("Received OracleEthDataCall.Request from enclave.")
+                        logger.info("Received OracleEthDataCall Request from enclave.")
                         val replyMessage = try {
                             val returnValue = oracle.doEthDataCall(message.contractAddress, message.functionName, message.inputData, message.outputDataType)
                              OracleEthDataCall.Response(returnValue)
                         } catch (e: Exception) {
-                            logger.error("Failed to process OracleEthDataCall request.", e.message)
+                            logger.error("Failed to process OracleEthDataCall request. ${e.message}")
                             ErrorMessage("Failed to process OracleEthDataCall request: ${e.message}")
                         }
 
-                        enclave.sendMail(mail.topic, replyMessage.encodeToByteArray(), null)
+                        enclave.sendMail(mail.topic, replyMessage.encodeMessage(), null)
+                        logger.info("Sent OracleEthDataCall Response to enclave.")
 
                     }
                     else -> {
@@ -108,17 +114,18 @@ class Client(apiUrl: String, enclaveUrl: String, enclaveConstraint: String) {
     }
 
 
-    companion object fun main(args: Array<String>) {
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
 
+            val client = Oracle(apiUrl = args[0], enclaveUrl = args[1], enclaveConstraint = args[2], oracleKey = args[3])
 
-        val client = Client(apiUrl = args[0], enclaveUrl = args[1], enclaveConstraint = args[2])
-
-        try {
-            client.run()
-        } catch (e: Exception) {
-            // Do a safe shutdown, as we have already established connection to the enclave
-            client.shutdown()
+            try {
+                client.run()
+            } catch (e: Exception) {
+                // Do a safe shutdown, as we have already established connection to the enclave
+                client.shutdown()
+            }
         }
     }
-
 }

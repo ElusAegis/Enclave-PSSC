@@ -3,15 +3,16 @@ package edu.warwick.pssc.enclave
 import com.r3.conclave.enclave.Enclave
 import com.r3.conclave.enclave.EnclavePostOffice
 import com.r3.conclave.mail.EnclaveMail
+import edu.warwick.pssc.conclave.AddressPlaceholder
 import edu.warwick.pssc.conclave.EthContractDiscloseCondition
 import edu.warwick.pssc.conclave.EthPublicKey
 import edu.warwick.pssc.conclave.PublicKeyDiscloseCondition
 import edu.warwick.pssc.conclave.common.*
-import edu.warwick.pssc.conclave.common.Message.Companion.deserializeMessage
+import edu.warwick.pssc.conclave.common.MessageSerializer.decodeMessage
+import edu.warwick.pssc.conclave.common.MessageSerializer.encodeMessage
 import org.web3j.abi.datatypes.Address
 import org.web3j.abi.datatypes.Type
 import org.web3j.crypto.Keys.getAddress
-import java.security.PublicKey
 import java.security.SignatureException
 import java.util.*
 
@@ -25,11 +26,12 @@ import java.util.*
 class DataStoreEnclave : Enclave() {
 
     data class OracleSubmission (
-        val oracle: PublicKey,
+        val oracle: String,
         val data: List<Type<Any>>?,
     )
 
     data class RequesterDetails (
+        val routingHint: String?,
         val postOffice: EnclavePostOffice,
         val verifiedPublicKey: EthPublicKey,
     )
@@ -51,20 +53,20 @@ class DataStoreEnclave : Enclave() {
 
     override fun receiveMail(mail: EnclaveMail, routingHint: String?) {
         logInfo("Received mail!")
-        logInfo("Mail Topic: ${mail.topic}")
+        logInfo("Mail Topic: ${mail.topic} RoutingHint: $routingHint")
 
-        val message = mail.bodyAsBytes.deserializeMessage()
+        val message = mail.bodyAsBytes.decodeMessage()
 
         val response: Message? = try {
             when (message) {
-                is SecretDataSubmission.Submission -> processDataSubmission(message, mail)
-                is SecretDataRequest.Request -> processDataRequestRequest(message, mail)
-                is OracleRegistration.Request -> processOracleRegistrationRequest(message, mail)
+                is SecretDataSubmission.Submission -> processDataSubmission(message)
+                is SecretDataRequest.Request -> processDataRequestRequest(message, mail, routingHint)
+                is OracleRegistration.Request -> processOracleRegistrationRequest(message, mail, routingHint)
                 is OracleEthDataCall.Response -> processOracleDataCallResponse(message, mail)
                 else -> {
                     logInfo("Received an unknown message!")
                     throw EnclaveStateException("Received an unknown message!")
-                }
+                } // Add processing for error messages from oracles
             }
         } catch (e: EnclaveStateException) {
             ErrorMessage(e.message)
@@ -74,7 +76,7 @@ class DataStoreEnclave : Enclave() {
 
         if (response != null) {
             logInfo("Sending response!")
-            val responseBytes = response.encodeToByteArray()
+            val responseBytes = response.encodeMessage()
             val encryptedMail = postOffice(mail).encryptMail(responseBytes)
             postMail(encryptedMail, routingHint)
         }
@@ -99,37 +101,42 @@ class DataStoreEnclave : Enclave() {
 
         val authorised = condition.check(message.outputData)
 
-        val dataMessage = getData(pendingDataRequest.dataId, authorised)
+        val messageToRequester = try {
+            getData(pendingDataRequest.dataId, authorised)
+        } catch (e: EnclaveStateException) {
+            ErrorMessage(e.message)
+        }
 
-        val encryptedMail = pendingDataRequest.requester.postOffice.encryptMail(dataMessage.encodeToByteArray())
-        postMail(encryptedMail, null)
+        val encryptedMail = pendingDataRequest.requester.postOffice.encryptMail(messageToRequester.encodeMessage())
+        postMail(encryptedMail, pendingDataRequest.requester.routingHint)
 
         return null
     }
 
     private fun processOracleRegistrationRequest(
         message: OracleRegistration.Request,
-        mail: EnclaveMail
+        mail: EnclaveMail,
+        routingHint: String?
     ): Message {
         logInfo("Processing Oracle Registration Request!")
 
-        val oracleKey = mail.authenticatedSender
+        val oracleKey = message.key
 
-        if (!oracleManager.registerOracle(oracleKey)) {
-            "Oracle with key $oracleKey already registered!".let { errorMessage ->
-                logInfo(errorMessage)
-                throw IllegalStateException(errorMessage)
-            }
+        val oracleRegistered = oracleManager.registerOracle(oracleKey, OracleManager.ConnectionData(mail.authenticatedSender, routingHint))
+
+        return if (!oracleRegistered) {
+            logInfo("Oracle with key $oracleKey already registered!")
+            OracleRegistration.AlreadyRegisteredResponse
+        } else {
+            logInfo ("Oracle with key $oracleKey registered!")
+            OracleRegistration.SuccessResponse
         }
-
-        logInfo ("Oracle with key $oracleKey registered!")
-
-        return OracleRegistration.SuccessResponse
     }
 
     private fun processDataRequestRequest(
         message: SecretDataRequest.Request,
-        mail: EnclaveMail
+        mail: EnclaveMail,
+        routingHint: String?
     ): Message? {
         logInfo("Processing Data Disclosure Request!")
         logInfo("Requested Data Id: ${message.dataReferenceId}")
@@ -155,9 +162,13 @@ class DataStoreEnclave : Enclave() {
 
                 @Suppress("UNCHECKED_CAST")
                 val requesterAddress = Address(getAddress(validatedRequesterKey)) as Type<Any> // TODO - check that this is safe
-                val inputData = condition.inputData.map<Type<Any>?, Type<Any>> { dataItem ->
+                val inputData = condition.inputData.map { item ->
                     // Replace all empty positions in the input data with the Address of the requester
-                    dataItem ?: requesterAddress
+                    if (item.javaClass == AddressPlaceholder::class.java) {
+                        requesterAddress
+                    } else {
+                        item
+                    }
                 }
 
                 val requestToOracles = OracleEthDataCall.Request(
@@ -173,18 +184,18 @@ class DataStoreEnclave : Enclave() {
                 if (oracles.isEmpty())
                     throw EnclaveStateException("Could not check the data request as no oracles are online!")
 
-                oracles.forEach {
-                    logInfo("Calling Oracle: ${it.toString().subSequence(0, 10)}...")
-                    val encryptedMail = postOffice(it, dataRequestId.toString()).encryptMail(requestToOracles.encodeToByteArray())
-                    postMail(encryptedMail, null)
+                oracles.forEach { (oracleKey, oracleConnection) ->
+                    logInfo("Calling Oracle: ${oracleKey.subSequence(0, 10)}...")
+                    val encryptedMail = postOffice(oracleConnection.publicKey, dataRequestId.toString()).encryptMail(requestToOracles.encodeMessage())
+                    postMail(encryptedMail, oracleConnection.routingHint)
                 }
 
-                val requester = RequesterDetails(postOffice(mail), validatedRequesterKey)
+                val requester = RequesterDetails(routingHint, postOffice(mail), validatedRequesterKey)
 
                 pendingDataRequests[dataRequestId] = PendingDataRequest(
                     message.dataReferenceId,
                     requester,
-                    oracles.map { OracleSubmission(it, null) })
+                    oracles.map { OracleSubmission(it.key, null) })
 
                 // By this point we have sent out all requests to the oracles, so we can wait for the responses
                 // will trigger a new execution of the "receiveMail" method, which will process the response
@@ -198,8 +209,7 @@ class DataStoreEnclave : Enclave() {
     }
 
     private fun processDataSubmission(
-        message: SecretDataSubmission.Submission,
-            mail: EnclaveMail
+        message: SecretDataSubmission.Submission
     ): Message {
         logInfo("Received a Secret Data Submission!")
         // Store secret data in database

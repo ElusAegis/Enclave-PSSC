@@ -7,7 +7,6 @@ import edu.warwick.pssc.conclave.SecretData
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.Polymorphic
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.protobuf.ProtoBuf
 import org.web3j.abi.TypeReference
 import org.web3j.abi.datatypes.Address
 import org.web3j.abi.datatypes.Type
@@ -15,17 +14,7 @@ import org.web3j.crypto.Sign
 import java.util.*
 
 @Serializable
-sealed class Message {
-    /**
-     * Serialize message to a byte array
-     */
-    fun encodeToByteArray() = ProtoBuf.encodeToByteArray(serializer(), this)
-
-    /**
-     * Deserialize message from a byte array
-     */
-    companion object { fun ByteArray.deserializeMessage() = ProtoBuf.decodeFromByteArray(serializer(), this) }
-}
+sealed class Message
 
 object SecretDataSubmission {
     /**
@@ -84,13 +73,19 @@ object OracleRegistration {
      * Message sent from the Oracle to the Host to register as an Oracle.
      */
     @Serializable
-    object Request : Message()
+    data class Request(val key: String) : Message()
 
     /**
      * Response after a successful Oracle registration.
      */
     @Serializable
     object SuccessResponse: Message()
+
+    /**
+     * Response if the Oracle is already registered.
+     */
+    @Serializable
+    object AlreadyRegisteredResponse: Message()
 }
 
 object OracleEthDataCall {
