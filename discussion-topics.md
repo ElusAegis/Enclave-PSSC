@@ -80,3 +80,6 @@ we have added logger form log4j, being aware of its issues with the vulnerabilit
 We have used CNF form to allow an arbitrary comparison for a single cell of a contract function output. Yet we also need to extend this to comparing all function outputs in general as well as for different contracts.
 We achive the latter as a simplification - we need all contracts. Here wehave a tradeoff between the functionality and usability and type safeness. We could enforse stricter constraints with less functionality. But instead we have decided to allow more fluid verifications
 
+## Blockchain of Time
+
+When producing the epoch list, we could use either externally available data, such as Eth block hash. Which guarantees, that the data becomes available only every 15 seconds. Alternitively we can trust nodes to maintain their own counters. Which can be prone to issues of nodes going out of sync and over time speeding block production. This is a very dangerous behaviour which we do not want to allow. This would mean that nodes that move epochs faster will benefit more. Thus we will reserve to using block hashes that we know appear only every fix period of seconds. Alternative is a VDFs or anything else

@@ -20,6 +20,19 @@ sealed class DataDiscloseCondition <in CheckInputType> {
 typealias EthPublicKey = BigInteger
 typealias EthPrivateKey = BigInteger
 
+/**
+ * Information about the block sent and received from oracles to control the time inside the enclave
+ */
+@Serializable
+data class BlockInfo(
+    @Serializable(with = BigIntegerSerializer::class)
+    val blockNumber: BigInteger,
+    val blockHash: String,
+)
+
+/**
+ * Comparators for evaluating if the ETH DATA CALLs output is satisfying constraints
+ */
 @Serializable
 enum class Comparator {
     EQUAL,
@@ -118,3 +131,5 @@ object AddressPlaceholder: Type<Unit> {
         return "Address Placeholder"
     }
 }
+
+typealias OracleKey = String

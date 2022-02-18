@@ -1,4 +1,4 @@
-package edu.warwick.pssc.enclave
+package edu.warwick.pssc.enclave.modules
 
 import edu.warwick.pssc.conclave.EthPublicKey
 import org.web3j.crypto.Sign

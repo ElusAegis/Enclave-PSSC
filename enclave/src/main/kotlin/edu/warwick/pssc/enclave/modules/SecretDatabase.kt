@@ -1,4 +1,4 @@
-package edu.warwick.pssc.enclave
+package edu.warwick.pssc.enclave.modules
 
 import edu.warwick.pssc.conclave.DataDiscloseCondition
 import edu.warwick.pssc.conclave.SecretData

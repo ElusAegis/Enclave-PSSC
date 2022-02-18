@@ -2,6 +2,7 @@
 
 package edu.warwick.pssc.conclave.common
 
+import edu.warwick.pssc.conclave.BlockInfo
 import edu.warwick.pssc.conclave.DataDiscloseCondition
 import edu.warwick.pssc.conclave.SecretData
 import kotlinx.serialization.Contextual
@@ -47,6 +48,12 @@ data class ErrorMessage (
     val message : String? = null
 ) : Message()
 
+/**
+ * Message confirming that the action was sussessful.
+ */
+@Serializable
+object SuccessMessage : Message()
+
 
 object SecretDataRequest {
 
@@ -79,13 +86,19 @@ object OracleRegistration {
      * Response after a successful Oracle registration.
      */
     @Serializable
-    object SuccessResponse: Message()
+    object Success: Message()
 
     /**
      * Response if the Oracle is already registered.
      */
     @Serializable
     object AlreadyRegisteredResponse: Message()
+
+    /**
+     * DeRegistration response if Oracle has been inactive for a while
+     */
+    @Serializable
+    object DeRegistrationMessage: Message()
 }
 
 object OracleEthDataCall {
@@ -107,10 +120,34 @@ object OracleEthDataCall {
      */
     @Serializable
     data class Response(
+        val success: Boolean,
         val outputData: List<@Polymorphic Type<@Contextual Any>>
     ) : Message()
 
 }
 
+object OracleBlock {
+    /**
+     * Find what is the latest block known to the enclave.
+     */
+    @Serializable
+    object CurrentRequest : Message()
+
+    /**
+     * Response with the latest block known to the enclave.
+     */
+    @Serializable
+    data class CurrentResponse(
+        val block: BlockInfo? // If the block is null, the enclave has not yet received any blocks. One is prompted to send the latest block known.
+    ) : Message()
+
+    /**
+     * Submit next block to the enclave.
+     */
+    @Serializable
+    data class NextSubmission(
+        val block: BlockInfo
+    ) : Message()
+}
 
 
