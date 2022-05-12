@@ -1,11 +1,3 @@
-plugins {
-    id 'application'
-}
-
-application {
-    mainClassName = "edu.warwick.pssc.client.Client"
-}
-
 dependencies {
     implementation project(":common")
 
@@ -19,4 +11,18 @@ dependencies {
     String slf4jVersion = "1.7.35"
     implementation "org.slf4j:slf4j-api:$slf4jVersion"
     implementation "org.slf4j:slf4j-simple:$slf4jVersion"
+}
+
+task runERC20Submitter(type: JavaExec) {
+    main = 'edu.warwick.pssc.client.EthCallDataProviderClient'
+    classpath = sourceSets.main.runtimeClasspath
+    standardInput = System.in
+    argsString = '-s -t -u "http://localhost:8080" -c "S:0000000000000000000000000000000000000000000000000000000000000000 PROD:1 SEC:INSECURE"'
+}
+
+task runERC20Requestor(type: JavaExec) {
+    main = 'edu.warwick.pssc.client.DataRequesterClient'
+    classpath = sourceSets.main.runtimeClasspath
+    standardInput = System.in
+    argsString = '-i -prv -c "S:0000000000000000000000000000000000000000000000000000000000000000 PROD:1 SEC:INSECURE" -u "http://localhost:8080"'
 }

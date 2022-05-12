@@ -115,13 +115,6 @@ class EthOracleService(apiUrl: String, private val defaultFromAddress: Address, 
             throw IllegalStateException("Eth call returned incorrect result size.")
         }
 
-        for (i in decodedResult.indices) {
-            if (decodedResult[i].javaClass != outputDataType[i].type.javaClass) {
-                logger.error("Eth call returned incorrect result type.")
-                throw IllegalStateException("Eth call returned incorrect result type.")
-            }
-        }
-
         return decodedResult
     }
 }

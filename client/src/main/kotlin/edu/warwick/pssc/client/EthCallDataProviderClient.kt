@@ -52,7 +52,7 @@ class EthCallDataProviderClient : Callable<Void?> {
     @CommandLine.Option(
         names = ["-t", "--token"],
         required = true,
-        interactive = false, // TODO: Make interactive
+        interactive = true,
         description = ["ERC20 Contract Address to check tokens of."],
         converter = [AddressConverter::class]
     )

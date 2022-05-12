@@ -1,5 +1,7 @@
 # Research Topic 
 
+0xc7AD46e0b8a400Bb3C915120d284AafbA8fc4735
+
 1. How to protect about data request replay, so that the Enclave could not reverse enclave to a previous state, replay the event horison, and then request all the request again.
    1. Use Oracles to sign true random messages from inside the enclave to outside oracle to prevent replay.
 
@@ -49,6 +51,14 @@ Additionally, how do we decide if all active Oracles have answered the challenge
 
 ## Constraints
 
+## Replay attacks until correct 
+
+What we’ve just shown is an example of a simulation. Note that in a world where time runs only forward and nobody can trick me with a time machine, the hat-based protocol is correct and sound, meaning that after E^2 rounds I should be convinced (with all but negligible probability) that the graph really is colorable and that Google is putting valid inputs into the protocol.
+
+What we’ve just shown is that if time doesn’t run only forward — specifically, if Google can ‘rewind’ my view of time — then they can fake a valid protocol run even if they have no information at all about the actual graph coloring.
+
+But we should calculate how many rounds it takes to get a correct protocol run without any information about the constraints.
+
 ### Signatures in Ethereum
 
 We can omit using the public key in a sending message due to the paper bellow
@@ -83,3 +93,9 @@ We achive the latter as a simplification - we need all contracts. Here wehave a 
 ## Blockchain of Time
 
 When producing the epoch list, we could use either externally available data, such as Eth block hash. Which guarantees, that the data becomes available only every 15 seconds. Alternitively we can trust nodes to maintain their own counters. Which can be prone to issues of nodes going out of sync and over time speeding block production. This is a very dangerous behaviour which we do not want to allow. This would mean that nodes that move epochs faster will benefit more. Thus we will reserve to using block hashes that we know appear only every fix period of seconds. Alternative is a VDFs or anything else
+
+## Out of scope of this implemintation
+
+### Missinformation
+
+The node who shares the secret might share the different secret to the participants, we could use https://eprint.iacr.org/2021/339.pdf to control it 

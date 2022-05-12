@@ -1,8 +1,8 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Start Data Requester Interactive" type="JetRunConfigurationType">
+  <configuration default="false" name="Start Data  Requester ERC20 Interactive" type="JetRunConfigurationType">
     <option name="MAIN_CLASS_NAME" value="edu.warwick.pssc.client.DataRequesterClient" />
     <module name="PSSC_With_Conclave.client.main" />
-    <option name="PROGRAM_PARAMETERS" value="-i -prv e5e426a40532c54dedb5bccd0a2493688778d32a457979124c035be9786024e8 -c &quot;S:0000000000000000000000000000000000000000000000000000000000000000 PROD:1 SEC:INSECURE&quot; -u &quot;http://localhost:8080&quot;" />
+    <option name="PROGRAM_PARAMETERS" value="-i -prv -c &quot;S:0000000000000000000000000000000000000000000000000000000000000000 PROD:1 SEC:INSECURE&quot; -u &quot;http://localhost:8080&quot;" />
     <shortenClasspath name="NONE" />
     <method v="2">
       <option name="Make" enabled="true" />

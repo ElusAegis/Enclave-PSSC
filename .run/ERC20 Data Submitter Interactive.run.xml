@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="ERC20 Data Submitter Interactive" type="JetRunConfigurationType">
+    <option name="MAIN_CLASS_NAME" value="edu.warwick.pssc.client.EthCallDataProviderClient" />
+    <module name="PSSC_With_Conclave.client.main" />
+    <option name="PROGRAM_PARAMETERS" value="-c &quot;S:0000000000000000000000000000000000000000000000000000000000000000 PROD:1 SEC:INSECURE&quot; -u &quot;http://localhost:8080&quot; -s -t " />
+    <shortenClasspath name="NONE" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

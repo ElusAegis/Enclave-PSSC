@@ -47,7 +47,7 @@ class DataRequesterClient : Callable<Void?> {
     @CommandLine.Option(
         names = ["-prv", "--private-key"],
         required = true,
-        interactive = false,
+        interactive = true,
         description = ["The private key to prove ownership of pubic key."],
         converter = [EthPublicKeyConverter::class]
     )
